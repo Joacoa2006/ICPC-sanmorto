@@ -16,9 +16,7 @@ vi depth;
 
 void dfs(int v, int p){
     up[v][0] = p;
-
     forr(j, 1, LOG) up[v][j] = up[up[v][j-1]][j-1];
-
     for(int u : adj[v]){
         if(u == p) continue;
         depth[u] = depth[v] + 1;
@@ -29,18 +27,13 @@ void dfs(int v, int p){
 void build_lca(int root = 1){ // O(n log n)
     LOG = 1;
     while((1 << LOG) <= n) LOG++;
-
     depth.assign(n + 1, 0);
     up.assign(n + 1, vi(LOG));
-
     dfs(root, root);
 }
 
 int jump(int v, int k){ // O(log n)
-    forn(j, LOG)
-        if(k & (1 << j))
-            v = up[v][j];
-
+    forn(j, LOG) if(k & (1 << j)) v = up[v][j];
     return v;
 }
 
@@ -51,18 +44,14 @@ bool is_ancestor(int u, int v){ // O(log n)
 
 int lca(int u, int v){ // O(log n)
     if(depth[u] < depth[v]) swap(u, v);
-
     u = jump(u, depth[u] - depth[v]);
-
     if(u == v) return u;
-
     dforn(j, LOG){
         if(up[u][j] != up[v][j]){
             u = up[u][j];
             v = up[v][j];
         }
     }
-
     return up[u][0];
 }
 
@@ -70,6 +59,9 @@ int dist(int u, int v){ // O(log n)
     int w = lca(u, v);
     return depth[u] + depth[v] - 2 * depth[w];
 }
+// USO: build_lca(root); is_ancestor(u, v) -> true sii u es ancestro de v;
+// jump(v, cant) -> devuelve el ancestro que está cant puestos arriba. Si se pasa devuelve el root
+// dist(u, v) -> distancia entre nodos
 
 int main(){
     ios::sync_with_stdio(0);
@@ -91,16 +83,6 @@ int main(){
     agregar(3, 7);
     agregar(6, 8);
     agregar(6, 9);
-
-    /*
-                1
-              /   \
-             2     3
-            / \   / \
-           4   5 6   7
-                / \
-               8   9
-    */
 
     build_lca(1);
 

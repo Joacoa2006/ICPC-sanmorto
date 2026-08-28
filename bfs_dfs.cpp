@@ -19,11 +19,9 @@ int timer;
 void dfs(int v){
     tin[v] = timer++;
     visited[v] = true;
-
     for(int u : adj[v]){
         if(!visited[u]) dfs(u);
     }
-
     tout[v] = timer++;
 }
 
@@ -33,18 +31,14 @@ vi d, p;
 void bfs(int s){
     d.assign(n + 1, -1);
     p.assign(n + 1, -1);
-
     queue<int> q;
     q.push(s);
     d[s] = 0;
-
     while(!q.empty()){
         int v = q.front();
         q.pop();
-
         for(int u : adj[v]){
             if(d[u] != -1) continue;
-
             d[u] = d[v] + 1;
             p[u] = v;
             q.push(u);
@@ -57,14 +51,11 @@ void bfs(int s){
 // Si no existe camino devuelve vector vacío.
 vi get_path(int v){
     if(d[v] == -1) return {};
-
     vi path;
-
     while(v != -1){
         path.push_back(v);
         v = p[v];
     }
-
     reverse(path.begin(), path.end());
     return path;
 }
@@ -83,7 +74,6 @@ int main(){
     forn(i, m){
         int u, v;
         cin >> u >> v;
-
         adj[u].push_back(v);
         adj[v].push_back(u);
     }
@@ -93,7 +83,6 @@ int main(){
     tin.assign(n + 1, 0);
     tout.assign(n + 1, 0);
     timer = 0;
-
     dfs(1);
 
     // BFS desde 1
@@ -103,7 +92,6 @@ int main(){
 
     vi camino = get_path(n);
 
-    for(int v : camino)
-        cout << v << " ";
+    for(int v : camino) cout << v << " ";
     cout << '\n';
 }

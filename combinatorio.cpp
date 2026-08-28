@@ -15,7 +15,6 @@ ll fast_pow(ll a, ll e, ll mod = MOD){
     ll res = 1;
     while(e){
         if(e & 1) res = res * a % mod;
-
         a = a * a % mod;
         e >>= 1;
     }

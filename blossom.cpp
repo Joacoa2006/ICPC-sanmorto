@@ -60,7 +60,6 @@ struct Blossom { // O(n ^ 3)
             int v = q[qh++];
             for(int u : g[v]){
                 if(base[v] == base[u] || mt[v] == u) continue;
-
                 if(u == root || (mt[u] != -1 && p[mt[u]] != -1)){
                     int cur = lca(v, u);
                     fill(all(blossom), false);

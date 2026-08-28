@@ -51,9 +51,6 @@ int main(){
     vector<ll> a(n);
 
     forn(i, n) cin >> a[i];
-
-    // ---------------- SUMAS ----------------
-
     Fenwick ft(n);
 
     // Cargar vector inicial: O(n log n)
@@ -67,29 +64,4 @@ int main(){
 
     // a[3] += 10
     ft.upd(3, 10);
-
-    // //---------------- XOR ----------------
-
-    // /*Primero cambiar las 3 lineas indicadas dentro del struct:
-
-    //     ft[i] += v        -> ft[i] ^= v
-    //     res += ft[i]      -> res ^= ft[i]
-    //     get(r) - get(l)   -> get(r) ^ get(l)
-
-    // Después el uso es IDENTICO:*/
-
-    // Fenwick ft(n);
-
-    // // Cargar vector
-    // forn(i, n)
-    //     ft.upd(i, a[i]);
-
-    // // XOR [0, 4)
-    // cout << ft.get(4) << '\n';
-
-    // // XOR [2, 5)
-    // cout << ft.get_range(2, 5) << '\n';
-
-    // // a[3] ^= 10
-    // ft.upd(3, 10);
 }
