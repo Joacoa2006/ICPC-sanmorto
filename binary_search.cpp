@@ -43,11 +43,11 @@ int main(){
     int ind = it - vv.begin();
 
     // Binary search en vector de vectores, devuelve un iterador al primer vector tal que su primer elemento sea > que value
-    auto it = upper_bound(vv.begin(), vv.end(), value,
+    it = upper_bound(vv.begin(), vv.end(), value,
         [](int value, const vector<int> &a){
             return value < a[0];
         }
     );
-    int ind = it - vv.begin();
+    ind = it - vv.begin();
 
 }
