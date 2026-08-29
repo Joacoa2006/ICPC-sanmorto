@@ -40,6 +40,7 @@ bool rabin(ll n){ // true iff n is prime
 	return true;
 }
 /////////////////////////////
+/*
 ll rho(ll n){
 	if(!(n&1))return 2;
 	ll x=2,y=2,d=1;
@@ -58,6 +59,7 @@ void fact(ll n, map<ll,int>& f){ //O (lg n)^3
 	if(rabin(n)){f[n]++;return;}
 	ll q=rho(n);fact(q,f);fact(n/q,f);
 }
+*/
 /////////////////////////////
 
 // optimized version: replace rho and fact with the following:
