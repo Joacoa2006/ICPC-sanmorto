@@ -2,7 +2,7 @@
 """
 Genera un PDF A4 apaisado, 2 columnas, pensado para imprimir un notebook ICPC.
 
-Objetivo de este layout "packed-v4":
+Objetivo de este layout "packed-v5":
 - NO fuerza página nueva al cambiar de sección.
 - NO fuerza columna nueva al cambiar de archivo.
 - El código se parte automáticamente entre columnas/páginas.
@@ -10,7 +10,7 @@ Objetivo de este layout "packed-v4":
 - Espaciado vertical mínimo: los títulos son los separadores.
 
 Uso:
-    python generar_notebook_icpc_packed_v3.py . -o ICPC-sanmorto.pdf
+    python generar_notebook_icpc_packed_v5.py . -o ICPC-sanmorto.pdf
 
 Opcional:
     --compact   quita main() de prueba de cada archivo, excepto template.cpp.
@@ -39,6 +39,8 @@ from reportlab.platypus import (
     Spacer,
     PageBreak,
 )
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 
 # -----------------------------------------------------------------------------
@@ -114,11 +116,25 @@ MARGIN_TOP = 9 * mm
 MARGIN_BOTTOM = 10 * mm
 GUTTER = 4.5 * mm
 
-CODE_FONT = "Courier"
-CODE_SIZE = 6.2
-CODE_LEADING = 7.0
-MAX_LINE_LENGTH = 106
-LAYOUT_VERSION = "packed-v4"
+# Código: DejaVu Sans Mono es más legible en impresión que Courier.
+# Se registra desde una ruta estándar de Linux (GitHub Actions usa Ubuntu).
+DEJAVU_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+CODE_FONT = "DejaVuSansMono"
+CODE_SIZE = 7.1
+CODE_LEADING = 8.05
+MAX_LINE_LENGTH = 92
+LAYOUT_VERSION = "packed-v5"
+
+
+def register_code_font():
+    font_path = Path(DEJAVU_MONO)
+    if font_path.exists():
+        pdfmetrics.registerFont(TTFont(CODE_FONT, str(font_path)))
+        return CODE_FONT
+
+    # Fallback para sistemas que no tengan DejaVu instalado.
+    print("Aviso: DejaVu Sans Mono no encontrado; se usa Courier.")
+    return "Courier"
 
 
 class NotebookDoc(BaseDocTemplate):
@@ -179,6 +195,7 @@ def on_page(canvas, doc):
 
 
 def build_pdf(repo: Path, output: Path, compact: bool):
+    code_font = register_code_font()
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle(
@@ -208,8 +225,8 @@ def build_pdf(repo: Path, output: Path, compact: bool):
         "Section",
         parent=styles["Heading1"],
         fontName="Helvetica-Bold",
-        fontSize=11.5,
-        leading=13,
+        fontSize=12.0,
+        leading=13.5,
         textColor=colors.black,
         borderWidth=0,
         spaceBefore=2,
@@ -222,8 +239,8 @@ def build_pdf(repo: Path, output: Path, compact: bool):
         "File",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
-        fontSize=8.1,
-        leading=9.2,
+        fontSize=8.7,
+        leading=9.8,
         spaceBefore=1,
         spaceAfter=0.5,
         keepWithNext=False,
@@ -252,7 +269,7 @@ def build_pdf(repo: Path, output: Path, compact: bool):
 
     code_style = ParagraphStyle(
         "Code",
-        fontName=CODE_FONT,
+        fontName=code_font,
         fontSize=CODE_SIZE,
         leading=CODE_LEADING,
         leftIndent=0,
