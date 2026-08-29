@@ -2,7 +2,7 @@
 """
 Genera un PDF A4 apaisado, 2 columnas, pensado para imprimir un notebook ICPC.
 
-Objetivo de este layout "packed-v3":
+Objetivo de este layout "packed-v4":
 - NO fuerza página nueva al cambiar de sección.
 - NO fuerza columna nueva al cambiar de archivo.
 - El código se parte automáticamente entre columnas/páginas.
@@ -37,6 +37,7 @@ from reportlab.platypus import (
     Paragraph,
     Preformatted,
     Spacer,
+    PageBreak,
 )
 
 
@@ -117,7 +118,7 @@ CODE_FONT = "Courier"
 CODE_SIZE = 6.2
 CODE_LEADING = 7.0
 MAX_LINE_LENGTH = 106
-LAYOUT_VERSION = "packed-v3"
+LAYOUT_VERSION = "packed-v4"
 
 
 class NotebookDoc(BaseDocTemplate):
@@ -331,7 +332,7 @@ def build_pdf(repo: Path, output: Path, compact: bool):
 
     # -------------------------------------------------------------------------
     # PORTADA / ÍNDICE
-    # Tampoco hay PageBreak después del índice: si queda lugar, arranca código.
+    # El índice queda separado del código: al terminar, comienza una hoja nueva.
     # -------------------------------------------------------------------------
     story.append(Spacer(1, 3 * mm))
     story.append(Paragraph("ICPC Sanmorto", title_style))
@@ -374,10 +375,14 @@ def build_pdf(repo: Path, output: Path, compact: bool):
             )
         )
 
+    # El código siempre empieza en una hoja nueva después del índice.
+    story.append(PageBreak())
+
     # -------------------------------------------------------------------------
-    # CÓDIGOS - FLUJO 100% CONTINUO
-    # NO PageBreak, NO FrameBreak, NO KeepTogether.
+    # CÓDIGOS - FLUJO CONTINUO ENTRE SECCIONES
+    # Después del índice NO hay más PageBreak/FrameBreak entre secciones.
     # Preformatted se puede partir por líneas y aprovecha el resto de columna.
+    # Se deja un pequeño espacio después de cada archivo para separarlos visualmente.
     # -------------------------------------------------------------------------
     for section_name, entries in resolved_sections:
         story.append(Paragraph(section_name, section_style))
@@ -401,6 +406,9 @@ def build_pdf(repo: Path, output: Path, compact: bool):
                     maxLineLength=MAX_LINE_LENGTH,
                 )
             )
+
+            # Aproximadamente 1-2 líneas de código de separación entre archivos.
+            story.append(Spacer(1, 3.2 * mm))
 
     output.parent.mkdir(parents=True, exist_ok=True)
     doc.build(story)
