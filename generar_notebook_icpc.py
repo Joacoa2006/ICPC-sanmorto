@@ -2,7 +2,7 @@
 """
 Genera un PDF A4 apaisado, 2 columnas, pensado para imprimir un notebook ICPC.
 
-Objetivo de este layout "packed-v5":
+Objetivo de este layout "packed-v6-gray":
 - NO fuerza página nueva al cambiar de sección.
 - NO fuerza columna nueva al cambiar de archivo.
 - El código se parte automáticamente entre columnas/páginas.
@@ -10,13 +10,13 @@ Objetivo de este layout "packed-v5":
 - Espaciado vertical mínimo: los títulos son los separadores.
 
 Uso:
-    python generar_notebook_icpc_packed_v5.py . -o ICPC-sanmorto.pdf
+    python generar_notebook_icpc_packed_v6_gray.py . -o ICPC-sanmorto.pdf
 
 Opcional:
     --compact   quita main() de prueba de cada archivo, excepto template.cpp.
 
 Dependencia:
-    pip install reportlab
+    pip install reportlab pygments
 """
 
 from __future__ import annotations
@@ -41,6 +41,12 @@ from reportlab.platypus import (
 )
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus.xpreformatted import XPreformatted
+
+from pygments import lex
+from pygments.lexers import CppLexer
+from pygments.token import Token
+from xml.sax.saxutils import escape
 
 
 # -----------------------------------------------------------------------------
@@ -119,22 +125,102 @@ GUTTER = 4.5 * mm
 # Código: DejaVu Sans Mono es más legible en impresión que Courier.
 # Se registra desde una ruta estándar de Linux (GitHub Actions usa Ubuntu).
 DEJAVU_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+DEJAVU_MONO_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
 CODE_FONT = "DejaVuSansMono"
+CODE_FONT_BOLD = "DejaVuSansMono-Bold"
 CODE_SIZE = 7.1
 CODE_LEADING = 8.05
 MAX_LINE_LENGTH = 92
-LAYOUT_VERSION = "packed-v5"
+LAYOUT_VERSION = "packed-v6-gray"
+
+# Escala de grises pensada para impresión.
+GRAY_COMMENT = "#8A8A8A"
+GRAY_LITERAL = "#4F4F4F"
+GRAY_PREPROC = "#303030"
 
 
-def register_code_font():
-    font_path = Path(DEJAVU_MONO)
-    if font_path.exists():
-        pdfmetrics.registerFont(TTFont(CODE_FONT, str(font_path)))
-        return CODE_FONT
+def register_code_fonts():
+    regular = Path(DEJAVU_MONO)
+    bold = Path(DEJAVU_MONO_BOLD)
 
-    # Fallback para sistemas que no tengan DejaVu instalado.
-    print("Aviso: DejaVu Sans Mono no encontrado; se usa Courier.")
-    return "Courier"
+    if regular.exists():
+        pdfmetrics.registerFont(TTFont(CODE_FONT, str(regular)))
+        regular_name = CODE_FONT
+    else:
+        print("Aviso: DejaVu Sans Mono no encontrado; se usa Courier.")
+        regular_name = "Courier"
+
+    if bold.exists():
+        pdfmetrics.registerFont(TTFont(CODE_FONT_BOLD, str(bold)))
+        bold_name = CODE_FONT_BOLD
+    else:
+        bold_name = "Courier-Bold"
+
+    return regular_name, bold_name
+
+
+def wrap_code_lines(code: str, width: int = MAX_LINE_LENGTH) -> str:
+    """Replica el wrapping simple de Preformatted antes de aplicar colores."""
+    # Caracteres naturales en los que conviene partir una línea de C++.
+    split_chars = " \t,.;:+-*/%&|^=!<>?()[]{}"
+    out = []
+
+    for line in code.split("\n"):
+        rest = line
+        first = True
+
+        while len(rest) > width:
+            cut = 0
+            for i in range(min(width, len(rest))):
+                if rest[i] in split_chars:
+                    cut = i + 1
+            if cut == 0:
+                cut = width
+
+            out.append(rest[:cut])
+            rest = rest[cut:]
+            first = False
+
+        out.append(rest)
+
+    return "\n".join(out)
+
+
+def cpp_to_reportlab_markup(code: str, regular_font: str, bold_font: str) -> str:
+    """Syntax highlighting C++ en escala de grises para XPreformatted."""
+    code = wrap_code_lines(code)
+    parts = []
+
+    for token_type, text in lex(code, CppLexer()):
+        safe = escape(text)
+        if not safe:
+            continue
+
+        # Preprocesador: oscuro y en negrita. Debe evaluarse antes que Comment,
+        # porque Pygments clasifica #define/#include como Comment.Preproc.
+        if token_type in Token.Comment.Preproc:
+            parts.append(
+                f'<font name="{bold_font}" color="{GRAY_PREPROC}">{safe}</font>'
+            )
+        # Comentarios normales: gris claro, como en notebooks ICPC impresos.
+        elif token_type in Token.Comment:
+            parts.append(
+                f'<font name="{regular_font}" color="{GRAY_COMMENT}">{safe}</font>'
+            )
+        # Keywords y tipos: negro + bold para encontrarlos de un vistazo.
+        elif token_type in Token.Keyword:
+            parts.append(
+                f'<font name="{bold_font}" color="#000000">{safe}</font>'
+            )
+        # Literales: gris oscuro, distinto sin perder contraste al imprimir.
+        elif token_type in Token.Literal:
+            parts.append(
+                f'<font name="{regular_font}" color="{GRAY_LITERAL}">{safe}</font>'
+            )
+        else:
+            parts.append(safe)
+
+    return "".join(parts)
 
 
 class NotebookDoc(BaseDocTemplate):
@@ -195,7 +281,7 @@ def on_page(canvas, doc):
 
 
 def build_pdf(repo: Path, output: Path, compact: bool):
-    code_font = register_code_font()
+    code_font, code_font_bold = register_code_fonts()
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle(
@@ -416,11 +502,11 @@ def build_pdf(repo: Path, output: Path, compact: bool):
             if not code.strip():
                 code = "// Archivo vacío en modo compacto"
 
+            highlighted = cpp_to_reportlab_markup(code, code_font, code_font_bold)
             story.append(
-                Preformatted(
-                    code,
+                XPreformatted(
+                    highlighted,
                     code_style,
-                    maxLineLength=MAX_LINE_LENGTH,
                 )
             )
 
