@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 """
-Genera un PDF imprimible a partir del repo ICPC-sanmorto.
+Genera un PDF A4 apaisado, 2 columnas, pensado para imprimir un notebook ICPC.
+
+Objetivo de este layout "packed-v3":
+- NO fuerza página nueva al cambiar de sección.
+- NO fuerza columna nueva al cambiar de archivo.
+- El código se parte automáticamente entre columnas/páginas.
+- No usa KeepTogether/keepWithNext para bloques de código.
+- Espaciado vertical mínimo: los títulos son los separadores.
 
 Uso:
-    python generar_notebook_icpc.py . -o ICPC-sanmorto.pdf --compact
+    python generar_notebook_icpc_packed_v3.py . -o ICPC-sanmorto.pdf
+
+Opcional:
+    --compact   quita main() de prueba de cada archivo, excepto template.cpp.
 
 Dependencia:
     pip install reportlab
-
---compact elimina el main() de prueba de cada archivo (excepto template.cpp),
-asumiendo que main() está al final del archivo.
 """
 
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -26,7 +33,6 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
-    PageBreak,
     PageTemplate,
     Paragraph,
     Preformatted,
@@ -37,7 +43,7 @@ from reportlab.platypus import (
 # -----------------------------------------------------------------------------
 # ORDEN DEL NOTEBOOK
 # Para agregar/reordenar códigos, editar solamente esta lista.
-# Cada entrada admite varios nombres de archivo alternativos.
+# Cada entrada admite nombres alternativos del mismo archivo.
 # -----------------------------------------------------------------------------
 SECTIONS = [
     (
@@ -96,17 +102,22 @@ SECTIONS = [
 ]
 
 
+# -----------------------------------------------------------------------------
+# LAYOUT
+# -----------------------------------------------------------------------------
 PAGE = landscape(A4)
 PAGE_W, PAGE_H = PAGE
-MARGIN_X = 9 * mm
-MARGIN_TOP = 10 * mm
-MARGIN_BOTTOM = 11 * mm
-GUTTER = 5 * mm
+
+MARGIN_X = 8 * mm
+MARGIN_TOP = 9 * mm
+MARGIN_BOTTOM = 10 * mm
+GUTTER = 4.5 * mm
 
 CODE_FONT = "Courier"
-CODE_SIZE = 6.25
-CODE_LEADING = 7.15
-MAX_LINE_LENGTH = 104
+CODE_SIZE = 6.2
+CODE_LEADING = 7.0
+MAX_LINE_LENGTH = 106
+LAYOUT_VERSION = "packed-v3"
 
 
 class NotebookDoc(BaseDocTemplate):
@@ -122,24 +133,26 @@ def resolve_file(repo: Path, alternatives: tuple[str, ...]) -> Path | None:
 
 
 def strip_test_main(code: str, filename: str) -> str:
-    """Compacta el notebook quitando main() de prueba si está al final."""
+    """Quita el main de prueba si aparece al final del archivo."""
     if filename == "template.cpp":
         return code
 
     lines = code.splitlines()
     for i, line in enumerate(lines):
-        if line.lstrip().startswith("int main(") or line.lstrip().startswith("int main ("):
+        s = line.lstrip()
+        if s.startswith("int main(") or s.startswith("int main ("):
             lines = lines[:i]
             break
 
     while lines and not lines[-1].strip():
         lines.pop()
+
     return "\n".join(lines)
 
 
 def read_code(path: Path, compact: bool) -> str:
     code = path.read_text(encoding="utf-8", errors="replace")
-    code = code.replace("\t", "    ").replace("\r\n", "\n").replace("\r", "\n")
+    code = code.replace("\r\n", "\n").replace("\r", "\n").replace("\t", "    ")
     if compact:
         code = strip_test_main(code, path.name)
     return code
@@ -148,15 +161,18 @@ def read_code(path: Path, compact: bool) -> str:
 def on_page(canvas, doc):
     canvas.saveState()
 
-    # Línea superior y pie discretos, pensados para impresión B/N.
     canvas.setStrokeColor(colors.HexColor("#B8B8B8"))
     canvas.setLineWidth(0.35)
-    canvas.line(MARGIN_X, PAGE_H - 7.3 * mm, PAGE_W - MARGIN_X, PAGE_H - 7.3 * mm)
+    canvas.line(MARGIN_X, PAGE_H - 6.7 * mm, PAGE_W - MARGIN_X, PAGE_H - 6.7 * mm)
 
-    canvas.setFont("Helvetica", 6.8)
+    canvas.setFont("Helvetica", 6.6)
     canvas.setFillColor(colors.HexColor("#555555"))
-    canvas.drawString(MARGIN_X, 5.7 * mm, "ICPC Sanmorto - Notebook")
-    canvas.drawRightString(PAGE_W - MARGIN_X, 5.7 * mm, f"Página {doc.page}")
+    canvas.drawString(
+        MARGIN_X,
+        5.2 * mm,
+        f"ICPC Sanmorto - Notebook | layout {LAYOUT_VERSION}",
+    )
+    canvas.drawRightString(PAGE_W - MARGIN_X, 5.2 * mm, f"Página {doc.page}")
 
     canvas.restoreState()
 
@@ -168,59 +184,71 @@ def build_pdf(repo: Path, output: Path, compact: bool):
         "NotebookTitle",
         parent=styles["Title"],
         fontName="Helvetica-Bold",
-        fontSize=21,
-        leading=23,
+        fontSize=19,
+        leading=21,
         alignment=TA_CENTER,
-        spaceAfter=6,
+        spaceAfter=3,
     )
+
     subtitle_style = ParagraphStyle(
         "Subtitle",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=8,
-        leading=10,
+        fontSize=7.5,
+        leading=9,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#444444"),
-        spaceAfter=8,
+        spaceAfter=4,
     )
+
+    # IMPORTANTE: keepWithNext=False.
+    # Una sección puede arrancar al final de cualquier columna.
     section_style = ParagraphStyle(
         "Section",
         parent=styles["Heading1"],
         fontName="Helvetica-Bold",
-        fontSize=13,
-        leading=15,
+        fontSize=11.5,
+        leading=13,
+        textColor=colors.black,
+        borderWidth=0,
         spaceBefore=2,
-        spaceAfter=7,
-        keepWithNext=True,
+        spaceAfter=1.5,
+        keepWithNext=False,
     )
+
+    # IMPORTANTE: tampoco se mantiene el título pegado al bloque completo.
     file_style = ParagraphStyle(
         "File",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
-        fontSize=8.6,
-        leading=10.2,
-        spaceBefore=4,
-        spaceAfter=2,
-        keepWithNext=True,
+        fontSize=8.1,
+        leading=9.2,
+        spaceBefore=1,
+        spaceAfter=0.5,
+        keepWithNext=False,
     )
+
     index_section_style = ParagraphStyle(
         "IndexSection",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=8.3,
-        leading=10,
-        spaceBefore=3,
-        spaceAfter=1,
+        fontSize=8.0,
+        leading=9.2,
+        spaceBefore=1.8,
+        spaceAfter=0.2,
     )
+
     index_item_style = ParagraphStyle(
         "IndexItem",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=7.2,
-        leading=8.7,
-        leftIndent=4 * mm,
+        fontSize=7.0,
+        leading=8.0,
+        leftIndent=3.5 * mm,
+        spaceBefore=0,
         spaceAfter=0,
     )
+
     code_style = ParagraphStyle(
         "Code",
         fontName=CODE_FONT,
@@ -229,7 +257,7 @@ def build_pdf(repo: Path, output: Path, compact: bool):
         leftIndent=0,
         rightIndent=0,
         spaceBefore=0,
-        spaceAfter=4,
+        spaceAfter=0,
         textColor=colors.black,
         allowWidows=1,
         allowOrphans=1,
@@ -241,8 +269,28 @@ def build_pdf(repo: Path, output: Path, compact: bool):
     frame_h = PAGE_H - MARGIN_TOP - MARGIN_BOTTOM
 
     frames = [
-        Frame(MARGIN_X, frame_y, col_w, frame_h, id="col1", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0),
-        Frame(MARGIN_X + col_w + GUTTER, frame_y, col_w, frame_h, id="col2", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0),
+        Frame(
+            MARGIN_X,
+            frame_y,
+            col_w,
+            frame_h,
+            id="col1",
+            leftPadding=0,
+            rightPadding=0,
+            topPadding=0,
+            bottomPadding=0,
+        ),
+        Frame(
+            MARGIN_X + col_w + GUTTER,
+            frame_y,
+            col_w,
+            frame_h,
+            id="col2",
+            leftPadding=0,
+            rightPadding=0,
+            topPadding=0,
+            bottomPadding=0,
+        ),
     ]
 
     doc = NotebookDoc(
@@ -257,7 +305,7 @@ def build_pdf(repo: Path, output: Path, compact: bool):
     )
     doc.addPageTemplates(PageTemplate(id="two_columns", frames=frames, onPage=on_page))
 
-    # Resolver archivos antes de construir el índice.
+    # Resolver archivos.
     resolved_sections = []
     used_files: set[str] = set()
     missing: list[str] = []
@@ -271,63 +319,100 @@ def build_pdf(repo: Path, output: Path, compact: bool):
                 continue
             resolved_entries.append((title, p))
             used_files.add(p.name)
+
         if resolved_entries:
             resolved_sections.append((section_name, resolved_entries))
 
-    # Todo .cpp nuevo que todavía no esté en el manifiesto se imprime al final.
     extras = [p for p in sorted(repo.glob("*.cpp")) if p.name not in used_files]
     if extras:
         resolved_sections.append(("7. Otros códigos", [(p.stem, p) for p in extras]))
 
     story = []
 
-    # Portada / índice
-    story.append(Spacer(1, 6 * mm))
+    # -------------------------------------------------------------------------
+    # PORTADA / ÍNDICE
+    # Tampoco hay PageBreak después del índice: si queda lugar, arranca código.
+    # -------------------------------------------------------------------------
+    story.append(Spacer(1, 3 * mm))
     story.append(Paragraph("ICPC Sanmorto", title_style))
     story.append(Paragraph("Notebook de programación competitiva", title_style))
+
     mode = "compacto (sin mains de prueba)" if compact else "completo"
-    story.append(Paragraph(
-        f"Generado desde <b>{repo.name}</b> - modo {mode} - {datetime.now().strftime('%Y-%m-%d')}",
-        subtitle_style,
-    ))
-    story.append(Spacer(1, 3 * mm))
+    story.append(
+        Paragraph(
+            f"Generado desde <b>{repo.name}</b> - modo {mode} - "
+            f"{datetime.now().strftime('%Y-%m-%d')}",
+            subtitle_style,
+        )
+    )
+
     story.append(Paragraph("Índice", section_style))
 
     for section_name, entries in resolved_sections:
         story.append(Paragraph(section_name, index_section_style))
         for idx, (title, p) in enumerate(entries, 1):
-            story.append(Paragraph(f"{idx}. {title} <font color='#666666'>({p.name})</font>", index_item_style))
+            story.append(
+                Paragraph(
+                    f"{idx}. {title} <font color='#666666'>({p.name})</font>",
+                    index_item_style,
+                )
+            )
 
     if missing:
-        story.append(Spacer(1, 3 * mm))
-        story.append(Paragraph(
-            "Archivos del manifiesto no encontrados: " + ", ".join(missing),
-            ParagraphStyle(
-                "Warning", parent=index_item_style, textColor=colors.HexColor("#777777"), leftIndent=0
-            ),
-        ))
+        warning_style = ParagraphStyle(
+            "Warning",
+            parent=index_item_style,
+            textColor=colors.HexColor("#777777"),
+            leftIndent=0,
+            spaceBefore=1,
+            spaceAfter=0,
+        )
+        story.append(
+            Paragraph(
+                "Archivos del manifiesto no encontrados: " + ", ".join(missing),
+                warning_style,
+            )
+        )
 
-    # Códigos
-    for sec_idx, (section_name, entries) in enumerate(resolved_sections):
-        story.append(PageBreak())
+    # -------------------------------------------------------------------------
+    # CÓDIGOS - FLUJO 100% CONTINUO
+    # NO PageBreak, NO FrameBreak, NO KeepTogether.
+    # Preformatted se puede partir por líneas y aprovecha el resto de columna.
+    # -------------------------------------------------------------------------
+    for section_name, entries in resolved_sections:
         story.append(Paragraph(section_name, section_style))
 
-        for file_idx, (title, path) in enumerate(entries, 1):
-            story.append(Paragraph(f"{title}  <font color='#666666'>- {path.name}</font>", file_style))
+        for title, path in entries:
+            story.append(
+                Paragraph(
+                    f"{title} <font color='#666666'>- {path.name}</font>",
+                    file_style,
+                )
+            )
+
             code = read_code(path, compact)
             if not code.strip():
                 code = "// Archivo vacío en modo compacto"
-            story.append(Preformatted(code, code_style, maxLineLength=MAX_LINE_LENGTH))
-            story.append(Spacer(1, 1.5 * mm))
+
+            story.append(
+                Preformatted(
+                    code,
+                    code_style,
+                    maxLineLength=MAX_LINE_LENGTH,
+                )
+            )
 
     output.parent.mkdir(parents=True, exist_ok=True)
     doc.build(story)
 
     print(f"PDF generado: {output}")
+    print(f"Layout: {LAYOUT_VERSION}")
+
     if missing:
         print("Aviso: faltaron archivos del manifiesto:")
         for x in missing:
             print("  -", x)
+
     if extras:
         print("Archivos no listados agregados en 'Otros códigos':")
         for p in extras:
@@ -335,14 +420,27 @@ def build_pdf(repo: Path, output: Path, compact: bool):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Genera un notebook PDF imprimible desde ICPC-sanmorto")
-    parser.add_argument("repo", nargs="?", default=".", help="carpeta raíz del repo (default: .)")
-    parser.add_argument("-o", "--output", default="ICPC-sanmorto-notebook.pdf", help="PDF de salida")
+    parser = argparse.ArgumentParser(
+        description="Genera un notebook PDF A4 horizontal de dos columnas"
+    )
+    parser.add_argument(
+        "repo",
+        nargs="?",
+        default=".",
+        help="carpeta raíz del repo (default: .)",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        default="ICPC-sanmorto-notebook.pdf",
+        help="PDF de salida",
+    )
     parser.add_argument(
         "--compact",
         action="store_true",
         help="quita main() de prueba de cada archivo excepto template.cpp",
     )
+
     args = parser.parse_args()
 
     repo = Path(args.repo).resolve()
