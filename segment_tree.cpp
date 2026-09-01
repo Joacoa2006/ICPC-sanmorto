@@ -15,7 +15,7 @@ typedef long long ll;
 // query: busca en el rango [a, b)
 // Los valores de los indices se piensan en el rango [0, n - 1] -> valores del vector. Las posiciones tmb se piensan con base 0.
 struct STree {
-	vector<int> st;int n;
+	vector<int> st; int n;
 	STree(int n): st(4*n+5,NEUT), n(n) {}
 	void init(int k, int s, int e, int *a){
 		if(s+1==e){st[k]=a[s];return;}
@@ -42,48 +42,19 @@ struct STree {
 }; // usage: STree rmq(n);rmq.init(x);rmq.upd(i,v);rmq.query(s,e);
 
 int main(){
-    ios::sync_with_stdio(0);
-    cin.tie(0);
-
     int n = 6;
     int a[] = {5, 2, 7, 1, 9, 3};
-
     STree st(n);
     st.init(a);
-
-    // arreglo:
-    // idx: 0 1 2 3 4 5
-    // val: 5 2 7 1 9 3
-
-    cout << st.query(0, 6) << '\n'; // min de todo = 1
-
-    cout << st.query(1, 4) << '\n';
-    // rango [1,4) -> indices 1,2,3
-    // valores 2,7,1
-    // resultado = 1
-
-    cout << st.query(4, 6) << '\n';
-    // rango [4,6) -> indices 4,5
-    // valores 9,3
-    // resultado = 3
-
-
+    cout << st.query(0, 6) << '\n'; // 1
+    cout << st.query(1, 4) << '\n'; // 1
+    cout << st.query(4, 6) << '\n'; // 3
     // Cambio a[3] = 8
     st.upd(3, 8);
-
-    // ahora:
-    // 5 2 7 8 9 3
-
     cout << st.query(0, 6) << '\n'; // 2
     cout << st.query(1, 4) << '\n'; // 2
-
-
     // Cambio a[1] = 10
     st.upd(1, 10);
-
-    // ahora:
-    // 5 10 7 8 9 3
-
     cout << st.query(0, 6) << '\n'; // 3
-    cout << st.query(0, 3) << '\n'; // min(5,10,7) = 5
+    cout << st.query(0, 3) << '\n'; // 5
 }
