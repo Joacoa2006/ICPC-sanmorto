@@ -18,16 +18,16 @@ using vi = vector<int>;
 const ll INF = 1e18 + 100;
 
 // DINIC - Maximum Flow
-// Complejidad general: O(V^2 * E)
+// General: O(V^2 E)
+// Unit capacities / bipartite matching: O(E sqrt(V))
+// General: ~1e4 V, 1e5 E muy seguro.
+// Matching: ~2e5 V, 5e5 E razonable incluso con TL ~1s.
 // add_edge(u, v, cap): agrega arista dirigida u -> v con capacidad cap
 // max_flow(s, t): devuelve el flujo maximo entre s y t
 //
 // Despues de max_flow:
 // dist[v] >= 0 <=> v queda del lado de la fuente en un min-cut
 // dist[v] < 0  <=> v queda del lado del sink
-//
-// Para matching bipartito con capacidades 1:
-// source -> izquierda -> derecha -> sink
 
 struct Dinic {
     struct Edge { 
