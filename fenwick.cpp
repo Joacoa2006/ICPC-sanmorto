@@ -10,30 +10,21 @@ typedef long long ll;
 // upd(i, v):      a[i] += v               O(log n)
 // get(i):         suma de [0, i)          O(log n)
 // get_range(l,r): suma de [l, r)          O(log n)
-//
-// Para usar XOR cambiar:
-//      +=  por ^=     en upd
-//      +=  por ^=     en get
-//      -   por ^      en get_range
 
 struct Fenwick {
     int n;
     vector<ll> ft;
-
     Fenwick(int n): n(n), ft(n + 1, 0) {}
-
     void upd(int i, ll v){
         for(i++; i <= n; i += i & -i) ft[i] += v;
-        // XOR: ft[i] ^= v;
+        // XOR: ft[i] ^= v; MAX: ft[i] = max(ft[i], v);
     }
-
     ll get(int i){
         ll res = 0;
         for(; i > 0; i -= i & -i) res += ft[i];
-        // XOR: res ^= ft[i];
+        // XOR: res ^= ft[i]; MAX: res = max(res, ft[i]);
         return res;
     }
-
     ll get_range(int l, int r){
         return get(r) - get(l);
         // XOR: get(r) ^ get(l);        
