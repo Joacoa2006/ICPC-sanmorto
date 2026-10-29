@@ -28,7 +28,8 @@ Matrix mul(const Matrix &a, const Matrix &b){
     forn(i, n){
         forn(k, n){
             forn(j, n){
-                c[i][j] = (c[i][j] + a[i][k] * b[k][j]) % MOD;
+                c[i][j] = (c[i][j] + a[i][k] * b[k][j]) % MOD; 
+                //Si se usa otro monoide se modifica esta linea
             }
         }
     }
@@ -38,7 +39,8 @@ Matrix mul(const Matrix &a, const Matrix &b){
 Matrix mat_pow(Matrix a, ll e){
     int n = sz(a);
     Matrix res(n, vl(n, 0));
-    forn(i, n) res[i][i] = 1;
+    forn(i, n) res[i][i] = 1; 
+    //Si se modifica el monoide, se cambia su neutro
     while(e){
         if(e & 1) res = mul(res, a);
         a = mul(a, a);
