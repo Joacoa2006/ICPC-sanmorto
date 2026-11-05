@@ -208,6 +208,20 @@ def discover_sections(repo: Path):
     for p in files:
         grouped[classify_cpp(p.relative_to(repo))].append((pretty_title(p), p))
 
+    # Orden dentro de cada seccion. En Base y utilidades, template.cpp
+    # debe aparecer SIEMPRE primero, luego int128.cpp y binary_search.cpp.
+    # El resto queda alfabetico por ruta/nombre.
+    def entry_sort_key(entry):
+        title, p = entry
+        rel = p.relative_to(repo)
+        return (
+            FILE_PRIORITY.get(p.name.lower(), 1000),
+            rel.as_posix().lower(),
+        )
+
+    for section in grouped:
+        grouped[section].sort(key=entry_sort_key)
+
     return [(section, grouped[section]) for section in SECTION_ORDER if grouped[section]]
 
 # -----------------------------------------------------------------------------
@@ -230,7 +244,7 @@ CODE_FONT_BOLD = "DejaVuSansMono-Bold"
 CODE_SIZE = 7.1
 CODE_LEADING = 8.05
 MAX_LINE_LENGTH = 92
-LAYOUT_VERSION = "packed-v7-auto"
+LAYOUT_VERSION = "packed-v7-auto-v4"
 
 # Escala de grises pensada para impresión.
 GRAY_COMMENT = "#8A8A8A"
