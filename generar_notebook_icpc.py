@@ -107,6 +107,15 @@ PRETTY_TITLES = {
 }
 
 
+FILE_PRIORITY = {
+    "template.cpp": 0,
+    "int128.cpp": 1,
+    "binary_search.cpp": 2,
+}
+
+def file_sort_key(path: Path):
+    return (FILE_PRIORITY.get(path.name.lower(), 1000), path.name.lower())
+
 def pretty_title(path: Path) -> str:
     if path.name in PRETTY_TITLES:
         return PRETTY_TITLES[path.name]
