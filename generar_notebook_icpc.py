@@ -90,6 +90,8 @@ PRETTY_TITLES = {
     "bfs_dfs.cpp": "BFS / DFS",
     "uf_kruskal.cpp": "Union Find + Kruskal",
     "binary_lifting.cpp": "Binary Lifting",
+    "queries_binary_lifting.cpp": "Binary Lifting para Queries",
+    "LCA_binary_lifting.cpp": "LCA - Binary Lifting",
     "dijkstra.cpp": "Dijkstra",
     "dijsktra.cpp": "Dijkstra",
     "bellman_ford.cpp": "Bellman-Ford",
@@ -114,6 +116,12 @@ def pretty_title(path: Path) -> str:
 def classify_cpp(path: Path) -> str:
     s = path.as_posix().lower()
     name = path.name.lower()
+
+    # Casos especificos antes de las reglas generales.
+    # Binary lifting para queries/rangos -> estructuras/range queries.
+    # LCA binary lifting -> grafos/arboles.
+    if "binary_lifting" in s and ("quer" in s or "range" in s):
+        return "3. Estructuras de datos y range queries"
 
     # Strings
     if any(x in s for x in (
