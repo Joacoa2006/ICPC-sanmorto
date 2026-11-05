@@ -2,7 +2,9 @@
 """
 Genera un PDF A4 apaisado, 2 columnas, pensado para imprimir un notebook ICPC.
 
-Objetivo de este layout "packed-v6-gray":
+Objetivo de este layout "packed-v7-auto":
+- Incluye automaticamente TODOS los archivos .cpp del repo.
+- Busca tambien en subdirectorios.
 - NO fuerza página nueva al cambiar de sección.
 - NO fuerza columna nueva al cambiar de archivo.
 - El código se parte automáticamente entre columnas/páginas.
@@ -10,7 +12,7 @@ Objetivo de este layout "packed-v6-gray":
 - Espaciado vertical mínimo: los títulos son los separadores.
 
 Uso:
-    python generar_notebook_icpc_packed_v6_gray.py . -o ICPC-sanmorto.pdf
+    python generar_notebook_icpc_packed_v7_auto.py . -o ICPC-sanmorto.pdf
 
 Opcional:
     --compact   quita main() de prueba de cada archivo, excepto template.cpp.
@@ -50,66 +52,146 @@ from xml.sax.saxutils import escape
 
 
 # -----------------------------------------------------------------------------
-# ORDEN DEL NOTEBOOK
-# Para agregar/reordenar códigos, editar solamente esta lista.
-# Cada entrada admite nombres alternativos del mismo archivo.
+# ORGANIZACION AUTOMATICA
+#
+# Se buscan TODOS los .cpp del repo, incluso dentro de subdirectorios.
+# La clasificacion es solamente estetica: si un nombre no coincide con ninguna
+# regla, el archivo entra en "Otros codigos". Por lo tanto ningun .cpp queda
+# afuera del handbook por no estar listado a mano.
 # -----------------------------------------------------------------------------
-SECTIONS = [
-    (
-        "1. Base y utilidades",
-        [
-            ("Template base", ("template.cpp",)),
-            ("Binary search", ("binary_search.cpp",)),
-            ("__int128", ("int128.cpp",)),
-        ],
-    ),
-    (
-        "2. Matemática y teoría de números",
-        [
-            ("Combinatoria", ("combinatorio.cpp",)),
-            ("Sieve", ("sieve.cpp",)),
-            ("Smallest Prime Factor (SPF)", ("spf.cpp",)),
-            ("Pollard Rho", ("pollard_rho.cpp",)),
-            ("Exponentiación de matrices", ("mat_expo.cpp",)),
-        ],
-    ),
-    (
-        "3. Estructuras de datos y range queries",
-        [
-            ("Fenwick Tree", ("fenwick.cpp",)),
-            ("Fenwick Tree 2D", ("fenwick_2d.cpp",)),
-            ("Segment Tree", ("segment_tree.cpp",)),
-            ("Sparse Table", ("sparse_table.cpp",)),
-            ("Ordered Set / PBDS", ("ordered_set.cpp",)),
-            ("Mo's Algorithm", ("mo.cpp",)),
-        ],
-    ),
-    (
-        "4. Grafos básicos, árboles y MST",
-        [
-            ("BFS / DFS", ("bfs_dfs.cpp",)),
-            ("Union Find + Kruskal", ("uf_kruskal.cpp",)),
-            ("Binary Lifting", ("binary_lifting.cpp",)),
-        ],
-    ),
-    (
-        "5. Caminos mínimos",
-        [
-            ("Dijkstra", ("dijkstra.cpp", "dijsktra.cpp")),
-            ("Bellman-Ford", ("bellman_ford.cpp",)),
-            ("Floyd-Warshall", ("floyd_warshall.cpp",)),
-        ],
-    ),
-    (
-        "6. Matching y flujo",
-        [
-            ("Kuhn - Matching bipartito", ("matching.cpp", "kuhn.cpp")),
-            ("Blossom - Matching general", ("blossom.cpp",)),
-            ("Dinic - Maximum Flow", ("dinic.cpp",)),
-        ],
-    ),
+SECTION_ORDER = [
+    "1. Base y utilidades",
+    "2. Matematica y teoria de numeros",
+    "3. Estructuras de datos y range queries",
+    "4. Grafos, arboles y MST",
+    "5. Caminos minimos",
+    "6. Matching y flujo",
+    "7. Strings",
+    "8. Geometria",
+    "9. Otros codigos",
 ]
 
+PRETTY_TITLES = {
+    "template.cpp": "Template base",
+    "binary_search.cpp": "Binary Search",
+    "int128.cpp": "__int128",
+    "combinatorio.cpp": "Combinatoria",
+    "sieve.cpp": "Sieve",
+    "spf.cpp": "Smallest Prime Factor (SPF)",
+    "pollard_rho.cpp": "Pollard Rho",
+    "mat_expo.cpp": "Exponentiacion de matrices",
+    "fenwick.cpp": "Fenwick Tree",
+    "fenwick_2d.cpp": "Fenwick Tree 2D",
+    "segment_tree.cpp": "Segment Tree",
+    "lazy_segment_tree.cpp": "Lazy Segment Tree",
+    "sparse_table.cpp": "Sparse Table",
+    "ordered_set.cpp": "Ordered Set / PBDS",
+    "mo.cpp": "Mo's Algorithm",
+    "bfs_dfs.cpp": "BFS / DFS",
+    "uf_kruskal.cpp": "Union Find + Kruskal",
+    "binary_lifting.cpp": "Binary Lifting",
+    "dijkstra.cpp": "Dijkstra",
+    "dijsktra.cpp": "Dijkstra",
+    "bellman_ford.cpp": "Bellman-Ford",
+    "floyd_warshall.cpp": "Floyd-Warshall",
+    "matching.cpp": "Kuhn - Matching bipartito",
+    "kuhn.cpp": "Kuhn - Matching bipartito",
+    "blossom.cpp": "Blossom - Matching general",
+    "dinic.cpp": "Dinic - Maximum Flow",
+    "hash.cpp": "String Hash",
+    "string_hash.cpp": "String Hash",
+    "geometry.cpp": "Geometria 2D",
+    "geometry_basic.cpp": "Geometria 2D basica",
+}
+
+
+def pretty_title(path: Path) -> str:
+    if path.name in PRETTY_TITLES:
+        return PRETTY_TITLES[path.name]
+    return path.stem.replace("_", " ").replace("-", " ").title()
+
+
+def classify_cpp(path: Path) -> str:
+    s = path.as_posix().lower()
+    name = path.name.lower()
+
+    # Strings
+    if any(x in s for x in (
+        "hash", "string", "kmp", "manacher", "suffix", "trie",
+        "aho", "z_function", "zfunction", "rolling_hash"
+    )):
+        return "7. Strings"
+
+    # Geometria
+    if any(x in s for x in (
+        "geometry", "geometr", "convex", "polygon", "circle",
+        "circun", "point_in", "line_inter", "segment_inter"
+    )):
+        return "8. Geometria"
+
+    # Matching / flujo
+    if any(x in s for x in (
+        "dinic", "flow", "matching", "kuhn", "blossom", "hopcroft",
+        "hungarian", "min_cost"
+    )):
+        return "6. Matching y flujo"
+
+    # Caminos minimos
+    if any(x in s for x in (
+        "dijkstra", "dijsktra", "bellman", "floyd", "shortest"
+    )):
+        return "5. Caminos minimos"
+
+    # Grafos / arboles / MST
+    if any(x in s for x in (
+        "bfs", "dfs", "kruskal", "union_find", "unionfind", "dsu",
+        "binary_lifting", "lca", "mst", "toposort", "topological",
+        "scc", "bridge", "articulation", "euler", "centroid", "hld"
+    )):
+        return "4. Grafos, arboles y MST"
+
+    # Estructuras / range queries
+    if any(x in s for x in (
+        "fenwick", "segment_tree", "segtree", "sparse_table", "ordered_set",
+        "pbds", "mo.cpp", "/mo/", "merge_sort_tree", "persistent", "treap",
+        "wavelet", "lazy"
+    )):
+        return "3. Estructuras de datos y range queries"
+
+    # Matematica / teoria de numeros
+    if any(x in s for x in (
+        "combin", "sieve", "spf", "pollard", "prime", "factor", "gcd",
+        "modular", "crt", "matrix_expo", "mat_expo", "fft", "ntt",
+        "number_theory"
+    )):
+        return "2. Matematica y teoria de numeros"
+
+    # Base / utilidades
+    if name in {"template.cpp", "binary_search.cpp", "int128.cpp"} or any(
+        x in s for x in ("rotate", "rotation", "flip", "grid_transform", "utility", "utils")
+    ):
+        return "1. Base y utilidades"
+
+    return "9. Otros codigos"
+
+
+def discover_sections(repo: Path):
+    ignored_dirs = {".git", ".github", "build", "dist", "__pycache__"}
+    files = []
+
+    for p in repo.rglob("*.cpp"):
+        rel = p.relative_to(repo)
+        if any(part in ignored_dirs for part in rel.parts):
+            continue
+        files.append(p)
+
+    files.sort(key=lambda p: p.relative_to(repo).as_posix().lower())
+
+    grouped = {section: [] for section in SECTION_ORDER}
+    for p in files:
+        grouped[classify_cpp(p.relative_to(repo))].append((pretty_title(p), p))
+
+    return [(section, grouped[section]) for section in SECTION_ORDER if grouped[section]]
 
 # -----------------------------------------------------------------------------
 # LAYOUT
@@ -131,7 +213,7 @@ CODE_FONT_BOLD = "DejaVuSansMono-Bold"
 CODE_SIZE = 7.1
 CODE_LEADING = 8.05
 MAX_LINE_LENGTH = 92
-LAYOUT_VERSION = "packed-v6-gray"
+LAYOUT_VERSION = "packed-v7-auto"
 
 # Escala de grises pensada para impresión.
 GRAY_COMMENT = "#8A8A8A"
@@ -225,14 +307,6 @@ def cpp_to_reportlab_markup(code: str, regular_font: str, bold_font: str) -> str
 
 class NotebookDoc(BaseDocTemplate):
     pass
-
-
-def resolve_file(repo: Path, alternatives: tuple[str, ...]) -> Path | None:
-    for name in alternatives:
-        p = repo / name
-        if p.exists():
-            return p
-    return None
 
 
 def strip_test_main(code: str, filename: str) -> str:
@@ -409,27 +483,12 @@ def build_pdf(repo: Path, output: Path, compact: bool):
     )
     doc.addPageTemplates(PageTemplate(id="two_columns", frames=frames, onPage=on_page))
 
-    # Resolver archivos.
-    resolved_sections = []
-    used_files: set[str] = set()
-    missing: list[str] = []
+    # Descubrir automaticamente todos los .cpp del repo.
+    resolved_sections = discover_sections(repo)
+    cpp_count = sum(len(entries) for _, entries in resolved_sections)
 
-    for section_name, entries in SECTIONS:
-        resolved_entries = []
-        for title, alternatives in entries:
-            p = resolve_file(repo, alternatives)
-            if p is None:
-                missing.append(" / ".join(alternatives))
-                continue
-            resolved_entries.append((title, p))
-            used_files.add(p.name)
-
-        if resolved_entries:
-            resolved_sections.append((section_name, resolved_entries))
-
-    extras = [p for p in sorted(repo.glob("*.cpp")) if p.name not in used_files]
-    if extras:
-        resolved_sections.append(("7. Otros códigos", [(p.stem, p) for p in extras]))
+    if cpp_count == 0:
+        raise SystemExit(f"No se encontraron archivos .cpp en {repo}")
 
     story = []
 
@@ -457,26 +516,10 @@ def build_pdf(repo: Path, output: Path, compact: bool):
         for idx, (title, p) in enumerate(entries, 1):
             story.append(
                 Paragraph(
-                    f"{idx}. {title} <font color='#666666'>({p.name})</font>",
+                    f"{idx}. {title} <font color='#666666'>({p.relative_to(repo).as_posix()})</font>",
                     index_item_style,
                 )
             )
-
-    if missing:
-        warning_style = ParagraphStyle(
-            "Warning",
-            parent=index_item_style,
-            textColor=colors.HexColor("#777777"),
-            leftIndent=0,
-            spaceBefore=1,
-            spaceAfter=0,
-        )
-        story.append(
-            Paragraph(
-                "Archivos del manifiesto no encontrados: " + ", ".join(missing),
-                warning_style,
-            )
-        )
 
     # El código siempre empieza en una hoja nueva después del índice.
     story.append(PageBreak())
@@ -493,7 +536,7 @@ def build_pdf(repo: Path, output: Path, compact: bool):
         for title, path in entries:
             story.append(
                 Paragraph(
-                    f"{title} <font color='#666666'>- {path.name}</font>",
+                    f"{title} <font color='#666666'>- {path.relative_to(repo).as_posix()}</font>",
                     file_style,
                 )
             )
@@ -519,15 +562,7 @@ def build_pdf(repo: Path, output: Path, compact: bool):
     print(f"PDF generado: {output}")
     print(f"Layout: {LAYOUT_VERSION}")
 
-    if missing:
-        print("Aviso: faltaron archivos del manifiesto:")
-        for x in missing:
-            print("  -", x)
-
-    if extras:
-        print("Archivos no listados agregados en 'Otros códigos':")
-        for p in extras:
-            print("  -", p.name)
+    print(f"Codigos .cpp incluidos: {cpp_count}")
 
 
 def main():
